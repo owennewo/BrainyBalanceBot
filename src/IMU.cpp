@@ -83,7 +83,7 @@ boolean ImuRead() {
     _lastTime = currentTime;
 
     data.interval = _lastInterval;
-    data.frequency = _lastInterval;
+    data.frequency = 1000000 / _lastInterval;
 
     IMU.readAcceleration(data.coordAccel.x, data.coordAccel.y, data.coordAccel.z);
     IMU.readGyroscope(data.coordGyro.x, data.coordGyro.y, data.coordGyro.z);
@@ -100,8 +100,6 @@ float ImuCalculate() {
     count++;
   data.axesAccel.roll = atan2(data.coordAccel.y, data.coordAccel.z) * 180 / M_PI;
   data.axesAccel.pitch = atan2(-data.coordAccel.x, sqrt(data.coordAccel.y * data.coordAccel.y + data.coordAccel.z * data.coordAccel.z)) * 180 / M_PI;
-
-  data.frequency = 1000000 / _lastInterval;
 
   data.axesGyro.roll = data.axesGyro.roll + (data.coordGyro.x / data.frequency);
   data.axesGyro.pitch = data.axesGyro.pitch + (data.coordGyro.y / data.frequency);

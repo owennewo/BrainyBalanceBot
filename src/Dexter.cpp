@@ -41,49 +41,20 @@ void setup() {
   while(!Serial) {}
 
 
-  // data.printHeader();
-  // data.print();
-  // pinMode(13, OUTPUT);
-  // digitalWrite(13, HIGH);
-  // Serial.begin(57600);
-  // Serial1.begin(38400);
-  // ImuInit();
-  // MotorInit();
-  // delay(1000); // pause before starting IMU calibration
-  // digitalWrite(13, LOW); // turn off LED while calibrating
-  // ImuCalibrate();
-  // digitalWrite(13, HIGH);
-
-
-
-  if (!IMU.begin()) {
-    Serial.println("Failed to initialize IMU!");
-
-    while (1);
-  }
-
-  Serial.print("Gyroscope sample rate = ");
-  Serial.print(IMU.gyroscopeSampleRate());
-  Serial.println(" Hz");
-  Serial.println();
-  Serial.println("Gyroscope in degrees/second");
-  Serial.println("X\tY\tZ");
+  data.printHeader();
+  data.print();
+  pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);
+  Serial.begin(57600);
+  Serial1.begin(38400);
+  ImuInit();
+  MotorInit();
+  delay(1000); // pause before starting IMU calibration
+  digitalWrite(13, LOW); // turn off LED while calibrating
+  ImuCalibrate();
+  digitalWrite(13, HIGH);
 
 } 
-
-void loop() {
-  float x, y, z;
-
-  if (IMU.gyroscopeAvailable()) {
-    IMU.readGyroscope(x, y, z);
-
-    // Serial.print(x);
-    // Serial.print('\t');
-    Serial.println(y);
-    // Serial.print('\t');
-    // Serial.println(z);
-  }
-}
 
 // smooth out data readings
 float smooth(float newValue, float oldValue, float alpha) {
@@ -189,7 +160,7 @@ bool fallen(float pitch) {
 
 
 
-void loop2() {
+void loop() {
 
 
 //   if (micros() - lastUpdateTime < 1000000 / FREQUENCY) {
