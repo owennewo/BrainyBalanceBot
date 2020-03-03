@@ -7,14 +7,7 @@
 
  extern Data data;
 
- void ImuBegin()
-{
-    
-    if (!IMU.begin()) {
-        Serial.println("Failed to initialize IMU!");
-        while (1);
-    }
-}
+ 
 
 void ImuCalibrate() {
 
@@ -22,7 +15,16 @@ void ImuCalibrate() {
   float value = 0;
   float dev;
 
+  pinMode(13, OUTPUT);
 
+  if (!IMU.begin()) {
+        Serial.println("Failed to initialize IMU!");
+        while (1);  
+  }
+
+  digitalWrite(13, LOW); // turn off LED while calibrating
+  
+  
   int16_t values[100];
   bool gyro_cal_ok = false;
   Serial.print("Calibrating ");
@@ -72,8 +74,9 @@ void ImuCalibrate() {
   data.axesGyro.roll = data.axesAccel.roll;
   data.axesGyro.pitch = data.axesAccel.pitch;
 
-//   Serial.println(data.coordGyroDrift.z);
   Serial.println(" complete");
+  digitalWrite(13, HIGH);
+
 }
 
 void ImuCalculate() {
@@ -108,6 +111,10 @@ void ImuCalculate() {
   int16_t correction = constrain(data.coordGyro.x, data.coordGyroDrift.x - 10, data.coordGyroDrift.x + 10); // limit corrections...
   data.coordGyroDrift.x = data.coordGyroDrift.x * 0.9995 + correction * 0.0005; // Time constant of this correction is around 20 sec.
 
+}
+
+bool ImuCrashed(float angle) {
+  return (angle > MAX_ANGLE || angle < - MAX_ANGLE);
 }
 
 boolean ImuRead() {  

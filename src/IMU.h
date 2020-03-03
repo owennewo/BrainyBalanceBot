@@ -5,8 +5,7 @@
 void ImuBegin();
 void ImuCalibrate();
 boolean ImuRead();
-// float ImuCalculate();
 void ImuPrint();
-
+bool ImuCrashed(float angle);
 
 #endif

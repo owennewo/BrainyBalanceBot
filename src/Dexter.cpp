@@ -3,40 +3,20 @@
 #include <Motor.h>
 #include <PID.h>
 #include <Data.h>
-
-#define MAX_SPEED 1200
-#define MAX_ANGLE 25
-
-#define MAX_ACCEL 20
-
-const int fallThreshold = MAX_ANGLE; // give up if robot is more than this many degrees from vertical
-
-long lastUpdateTime;
-long lastSteerTime;
-long lastPrintTimeMs;
+#include <Comms.h>
 
 Data data = Data(0.0027, 0.01, 200, 0.5);// = &data;
 // Data data = Data(0.0027, 0.01, 0.06, 0.5);// = &data;
 
-float count = 0.0;
-
 void setup() {
 
   Serial.begin(500000);
-  // while(!Serial) {}
-
+  
   delay(3000);
 
-  MotorDisable();
-  // Serial.println("Starting");
-
-  pinMode(13, OUTPUT);
-  digitalWrite(13, HIGH);
-  ImuBegin();
-  MotorInit();
-  digitalWrite(13, LOW); // turn off LED while calibrating
+  MotorBegin();
   ImuCalibrate();
-  digitalWrite(13, HIGH);
+  
 } 
 
 // smooth out data readings
@@ -44,155 +24,30 @@ float smooth(float newValue, float oldValue, float alpha) {
   return alpha * oldValue + (1 - alpha) * newValue;
 }
 
-void processCommand(char commandCode, char * commandValue) {
-
-    switch(commandCode) {
-       case 's':
-        data.speedInput = atof(commandValue);
-        // lastSteerTime = millis();
-        break;
-      case 'd':
-        data.directionInput = atoi(commandValue);
-        // lastSteerTime = millis();
-        break;
-      case 'P':
-        data.angleKp = atof(commandValue);
-        // Serial.println(data.angleKp);
-        break;
-      // case 'p':
-      //   data.angleKp -= 1;
-      //   break;
-      case 'D':
-        data.angleKd = atof(commandValue);
-        break;
-      // case 'd':
-      //   data.angleKd -= 0.025;
-      //   break;
-      case 'p':
-        data.speedKp =atof(commandValue);
-        break;
-      // case 's':
-      //   data.speedKp -= 0.001;
-      //   break;
-      case 'l':
-        data.log = boolean(atoi(commandValue));
-        break;
-      // case 's':
-      //   data.speedKp -= 0.001;
-      //   break;
-      case 'i':
-        data.speedKi = atof(commandValue);
-        break;
-      case 'A':
-        break;
-  }
-}
-
-char command[30] = "\n";
-char commandName;
-char * commandValue;
-byte commandIndex = 0;
-
-void readSerial() {
-  
-
-  while (Serial.available()) {
-    char received = Serial.read();
-    command[commandIndex] = received; 
-    
-    commandIndex++;
-    // Process message when new line character is recieved
-    if (received == '\n')
-    {
-        // Serial.println("Arduino Received: ");
-        // Serial.println(command);
-        commandName = strtok(command, " ")[0]; // must be single char please!
-        if (commandName != '\0') {
-          commandValue = strtok(NULL, "\n");
-          if (commandName != '\0') {
-            Serial.print((char) commandName);
-            Serial.print(":");
-            Serial.print((int) commandName);
-            Serial.print(":");
-            Serial.println(commandValue);
-            Serial.println(command);
-            processCommand(commandName, commandValue);
-          } else {
-            Serial.print("Unknown commandValue: ");
-            Serial.println(command);
-          }
-        } else {
-          Serial.print("Unknown commandName: ");
-          Serial.println(command);
-        }
-        commandIndex = 0;    
-    }
-  }
-  
-}
-
-bool fallen(float angle) {
-  return angle > fallThreshold || angle < - fallThreshold;
-}
-
-void loop2() {
-
-  readSerial();
-
-  if (ImuRead()) {
-    static long count;
-    count++;
-    if (count %100 == 0) {
-      Serial.println(data.axes.roll);
-    }
-  }
-}
-
 void loop() {
 
-  static boolean enabled;
-
   readSerial();
   
-  lastUpdateTime = micros();
   if (ImuRead()) {
       data.angleMeasured = data.axes.roll;
       
-        if (fallen(data.angleMeasured)) {
-            if (enabled) {
-                enabled = false;
-                MotorDisable();
-            }
-            // Serial.println("Fallen");
-            data.speedTarget = 1;
-        } else {
-            if (!enabled) {
-              enabled = true;
-              MotorEnable();
-            }
+      if (ImuCrashed(data.angleMeasured)) {
+        MotorDisable();
+      } else {
+        MotorEnable();
+        MotorCalculateMeasuredSpeed();
 
-            data.speedMeasuredLeft = data.stepsCountLeft * data.frequency / 32;
-            data.speedMeasuredRight = data.stepsCountRight * data.frequency / 32;
-            data.speedMeasured = (data.speedMeasuredLeft + data.speedMeasuredRight) / 2;
-            data.stepsCountRight = 0;
-            data.stepsCountLeft = 0;
+        data.angleTarget = PidSpeedToAngle(data.speedMeasured, data.speedInput, data.frequency);            
+        data.speedTarget = PidAngleToSteps(data.angleMeasured, data.angleTarget, data.frequency);
 
-            data.angleTarget = PidSpeedToAngle(data.speedMeasured, data.speedInput, data.frequency);            
-            data.speedTarget = PidAngleToSteps(data.angleMeasured, data.angleTarget, data.frequency);
-            
-        }
-
-        
         data.speedTarget = constrain(data.speedTarget, data.speedMeasured - MAX_ACCEL, data.speedMeasured + MAX_ACCEL);
         data.speedTarget = constrain(data.speedTarget, -MAX_SPEED, MAX_SPEED);
-
         data.speedTargetLeft = (data.speedTarget - data.directionInput);
         data.speedTargetRight = (data.speedTarget + data.directionInput);
+        
         MotorSetLeftSpeed(2 * data.speedTargetLeft);
-        MotorSetRightSpeed(2 * data.speedTargetRight);
-        data.print();
+        MotorSetRightSpeed(2 * data.speedTargetRight);            
+      }     
+      data.print();
   }
-  
 }
-
-

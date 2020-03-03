@@ -18,18 +18,16 @@ const int enablePin  = 8;
 int leftDir;
 int rightDir;
 
-
+boolean motorEnabled = false;
 
 TcCount16* _tcMotorLeft = (TcCount16*) TC4;
 TcCount16* _tcMotorRight = (TcCount16*) TC5;
-
 
 void leftStep() {
   static boolean toggle;
   data.stepsCountLeft += leftDir;
   toggle = !toggle; 
   digitalWrite(leftStepPin, toggle);
-//   digitalWrite(leftStepPin, LOW);
 }
 
 void rightStep() {
@@ -37,7 +35,6 @@ void rightStep() {
   data.stepsCountRight += rightDir;
   toggle = !toggle;   
   digitalWrite(rightStepPin, toggle);
-//   digitalWrite(rightStepPin, LOW);
 }
 
 void TC4_Handler() {
@@ -108,27 +105,42 @@ void startTimer(TcCount16* TC, long frequencyHz) {
   while (TC->STATUS.bit.SYNCBUSY == 1); // wait for sync
 }
 
-
 void MotorEnable() {
-  Serial.println("MOTOR +");
+  if (!motorEnabled) {
+    motorEnabled = true;
+    Serial.println("MOTOR +");
     digitalWrite(enablePin, LOW);
+  }
 }
 
 void MotorDisable() {
-  Serial.println("MOTOR -");
-  digitalWrite(enablePin, HIGH);  
+  if (motorEnabled) {
+    motorEnabled = false;
+    Serial.println("MOTOR -");
+    digitalWrite(enablePin, HIGH);
+    data.speedTarget = 1;    
+  }
+    
 }
 
-void MotorInit() {
+void MotorCalculateMeasuredSpeed() {
+  data.speedMeasuredLeft = data.stepsCountLeft * data.frequency / 32;
+  data.speedMeasuredRight = data.stepsCountRight * data.frequency / 32;
+  data.speedMeasured = (data.speedMeasuredLeft + data.speedMeasuredRight) / 2;
+  
+  data.stepsCountRight = 0;
+  data.stepsCountLeft = 0;
+}
+
+void MotorBegin() {
   
   pinMode(rightDirPin, OUTPUT);
   pinMode(rightStepPin, OUTPUT);
   pinMode(leftDirPin, OUTPUT);
   pinMode(leftStepPin, OUTPUT);
   pinMode(enablePin, OUTPUT);
-  
-  // disable motors initially
-  digitalWrite(enablePin, HIGH);
+
+  MotorDisable();
   
   startTimer(_tcMotorLeft,(long) 1);
   startTimer(_tcMotorRight,(long) 1);

@@ -1,6 +1,11 @@
 #ifndef _DATA_H_
 #define _DATA_H_
 
+#define MAX_SPEED 1200
+#define MAX_ANGLE 25
+#define MAX_ACCEL 20
+
+
 struct Coord {
     float x, y, z;
 };
