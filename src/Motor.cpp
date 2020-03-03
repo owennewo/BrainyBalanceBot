@@ -1,20 +1,20 @@
 #include <Arduino.h>
+#include <Data.h>
 
 #define TIMER_PRESCALER_DIV 16
 
-
-// #define TIMER_FREQ 1000000
+extern Data data;
 
 const int microsteps = 16; //8; // A4988 is set for 1/8th steps
 
-// const int microstepPin1 = 6;
-// const int microstepPin2 = 7;
-// const int microstepPin3 = 8;
 const int rightDirPin  = 3;
 const int rightStepPin = 6;
 const int leftDirPin   = 2;
 const int leftStepPin  = 5;
 const int enablePin  = 8;
+
+long oldLeftSpeed = 0;
+long oldRightSpeed = 0;
 
 
 TcCount16* _tcMotorLeft = (TcCount16*) TC4;
@@ -23,6 +23,7 @@ TcCount16* _tcMotorRight = (TcCount16*) TC5;
 
 void leftStep() {
   static boolean toggle;
+  data.stepsCountLeft++;
   toggle = !toggle; 
   digitalWrite(leftStepPin, toggle);
 //   digitalWrite(leftStepPin, LOW);
@@ -30,6 +31,7 @@ void leftStep() {
 
 void rightStep() {
   static boolean toggle;
+  data.stepsCountRight++;
   toggle = !toggle;   
   digitalWrite(rightStepPin, toggle);
 //   digitalWrite(rightStepPin, LOW);
@@ -39,8 +41,7 @@ void TC4_Handler() {
     TcCount16* TC = (TcCount16*) TC4;
   if (TC->INTFLAG.bit.MC0 == 1) {
     TC->INTFLAG.bit.MC0 = 1;
-
-      rightStep();
+      leftStep();
   }
 }
 
@@ -49,7 +50,7 @@ void TC5_Handler() {
     TcCount16* TC = (TcCount16*) TC5;
   if (TC->INTFLAG.bit.MC0 == 1) {
     TC->INTFLAG.bit.MC0 = 1;
-    leftStep();
+    rightStep();
   }
 }
 
@@ -106,18 +107,16 @@ void startTimer(TcCount16* TC, long frequencyHz) {
 
 
 void MotorEnable() {
+  Serial.println("MOTOR +");
     digitalWrite(enablePin, LOW);
-  
 }
 
 void MotorDisable() {
+  Serial.println("MOTOR -");
   digitalWrite(enablePin, HIGH);  
 }
 
 void MotorInit() {
-//   pinMode(microstepPin1, OUTPUT);
-//   pinMode(microstepPin2, OUTPUT);
-//   pinMode(microstepPin3, OUTPUT);
   
   pinMode(rightDirPin, OUTPUT);
   pinMode(rightStepPin, OUTPUT);
@@ -131,64 +130,22 @@ void MotorInit() {
   startTimer(_tcMotorLeft,(long) 1);
   startTimer(_tcMotorRight,(long) 1);
   
-//   Timer1.initialize(TIMER_FREQ);
-//   Timer1.attachInterrupt(leftStep);
-//   Timer3.initialize(TIMER_FREQ);
-//   Timer3.attachInterrupt(rightStep);
-
-//   setMicrosteps(microsteps);
 }
 
 void setDirection(int pin, long stepsPerSecond) {
   if (stepsPerSecond >= 0) {
-    digitalWrite(pin, HIGH);
-  } else {
     digitalWrite(pin, LOW);
+  } else {
+    digitalWrite(pin, HIGH);
   }
 }
 
-
 void MotorSetLeftSpeed(long stepsPerSecond) {
-  setTimerFrequency(_tcMotorRight, abs(stepsPerSecond * microsteps));
-//   Timer1.setPeriod(TIMER_FREQ / abs(stepsPerSecond * microsteps));
+  setTimerFrequency(_tcMotorLeft, abs(stepsPerSecond * microsteps));
   setDirection(leftDirPin, stepsPerSecond);
 }
 
 void MotorSetRightSpeed(long stepsPerSecond) {
-  setTimerFrequency(_tcMotorLeft, abs(stepsPerSecond * microsteps));
-//   Timer3.setPeriod(TIMER_FREQ / abs(stepsPerSecond * microsteps));
+  setTimerFrequency(_tcMotorRight, abs(stepsPerSecond * microsteps));
   setDirection(rightDirPin, stepsPerSecond);
 }
-
-
-
-
-// void setMicrosteps(int microsteps) {
-//   switch(microsteps) {
-//     case 1:
-//       digitalWrite(microstepPin1, LOW);
-//       digitalWrite(microstepPin2, LOW);
-//       digitalWrite(microstepPin3, LOW);
-//       break;
-//     case 2:
-//       digitalWrite(microstepPin1, HIGH);
-//       digitalWrite(microstepPin2, LOW);
-//       digitalWrite(microstepPin3, LOW);
-//       break;
-//     case 4:
-//       digitalWrite(microstepPin1, LOW);
-//       digitalWrite(microstepPin2, HIGH);
-//       digitalWrite(microstepPin3, LOW);
-//       break;
-//     case 8:
-//       digitalWrite(microstepPin1, HIGH);
-//       digitalWrite(microstepPin2, HIGH);
-//       digitalWrite(microstepPin3, LOW);
-//       break;
-//     case 16:
-//       digitalWrite(microstepPin1, HIGH);
-//       digitalWrite(microstepPin2, HIGH);
-//       digitalWrite(microstepPin3, HIGH);
-//       break;
-//   }
-// }

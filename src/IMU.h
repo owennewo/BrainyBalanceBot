@@ -2,10 +2,10 @@
 #define IMU_H
 #include <Data.h>
 
-void ImuInit();
+void ImuBegin();
 void ImuCalibrate();
 boolean ImuRead();
-float ImuCalculate();
+// float ImuCalculate();
 void ImuPrint();
 
 

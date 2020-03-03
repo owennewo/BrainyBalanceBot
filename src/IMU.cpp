@@ -1,101 +1,82 @@
 #include "Arduino.h"
 #include <Arduino_LSM6DS3.h>
 #include <IMU.h>
-// #include <imu.h>
 
  long _lastTime;
  long _lastInterval = 0;
 
  extern Data data;
 
- void ImuInit()
+ void ImuBegin()
 {
-    // data = data;
-}
-
-void ImuCalibrate() {
-    unsigned int delayMillis = 500;
-    unsigned int calibrationMillis = 500;
-
+    
     if (!IMU.begin()) {
         Serial.println("Failed to initialize IMU!");
         while (1);
     }
+}
 
-    // Serial.println("imu calibrate");
-    int calibrationCount = 0;
+void ImuCalibrate() {
 
-  delay(delayMillis); // to avoid shakes after pressing reset button
+  int i;
+  float value = 0;
+  float dev;
 
-  float sumX = 0.0, 
-        sumY = 0.0, 
-        sumZ = 0.0;
 
-  uint startTime = millis();
-  while (millis() < startTime + calibrationMillis) {
-    // Serial.print(".");
-    if (ImuRead()) {
-      // in an ideal world coordGyro.x/Y/Z == 0, anything higher or lower represents drift
-      sumX += data.coordGyro.x;
-      sumY += data.coordGyro.y;
-      sumZ += data.coordGyro.z;
-
-      calibrationCount++;
+  int16_t values[100];
+  bool gyro_cal_ok = false;
+  Serial.print("Calibrating ");
+  
+  delay(500);
+  while (!gyro_cal_ok){
+    // Serial.println("Gyro calibration... DONT MOVE!");
+    // we take 100 measurements in 4 seconds
+    for (i = 0; i < 100; i++)
+    {
+      if (i%10==0) {
+        Serial.print(".");
+      }
+      if (ImuRead()) {
+        values[i] = data.coordGyro.x;
+        value += data.coordGyro.x;
+        delay(25);
+      }
+      // MPU6050_read_3axis();
+      
     }
-    
+    // mean value
+    value = value / 100;
+    // calculate the standard deviation
+    dev = 0;
+    for (i = 0; i < 100; i++)
+      dev += (values[i] - value) * (values[i] - value);
+    dev = sqrt((1 / 100.0) * dev);
+    // Serial.print("offset: ");
+    // Serial.print(value);
+    // Serial.print("  stddev: ");
+    // Serial.println(dev);
+    if (dev < 5.0)
+      gyro_cal_ok = true;
+    else {
+      Serial.println("\nRepeat, DONT MOVE!");
+      Serial.print("Calibrating ");
+    }
+      
   }
-  Serial.println("imu done");
-  Serial.print("gyro ");
-  Serial.print(IMU.gyroscopeSampleRate());
-  Serial.print(" acc ");
-  Serial.println(IMU.accelerationSampleRate());
-  if (calibrationCount == 0) {
-    Serial.println("Failed to calibrate");
-  }
-
-  data.coordGyroDrift.x = sumX / calibrationCount;
-  data.coordGyroDrift.y = sumY / calibrationCount;
-  data.coordGyroDrift.z = sumZ / calibrationCount;
-
+  data.coordGyroDrift.x = value;
   
   // now make sure the initial angle is sensible
   ImuRead();
-  ImuCalculate();
   data.axes.roll = data.axesAccel.roll;
   data.axes.pitch = data.axesAccel.pitch;
   data.axesGyro.roll = data.axesAccel.roll;
   data.axesGyro.pitch = data.axesAccel.pitch;
 
 //   Serial.println(data.coordGyroDrift.z);
-
-  
-    
+  Serial.println(" complete");
 }
 
-boolean ImuRead() {  
-  
-  if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable() ) {
-    long currentTime = micros();
-    // USB.println(currentTime);
-    // USB.println(_lastTime);
-    // USB.println(_lastInterval);
-    _lastInterval = currentTime - _lastTime; // expecting this to be ~104Hz +- 4%
-    _lastTime = currentTime;
-
-    data.interval = _lastInterval;
-    data.frequency = 1000000 / _lastInterval;
-
-    IMU.readAcceleration(data.coordAccel.x, data.coordAccel.y, data.coordAccel.z);
-    IMU.readGyroscope(data.coordGyro.x, data.coordGyro.y, data.coordGyro.z);
-    // doCalculations();
-    // Serial.println(data.coordGyro.z);
-    //  Serial.println(data.axes.roll);
-    return true;
-  }
-  return false;
-}
-
-float ImuCalculate() {
+void ImuCalculate() {
     static int count;
     count++;
   data.axesAccel.roll = atan2(data.coordAccel.y, data.coordAccel.z) * 180 / M_PI;
@@ -109,47 +90,43 @@ float ImuCalculate() {
   data.axesGyroCalibrated.pitch = data.axesGyroCalibrated.pitch + ((data.coordGyro.y - data.coordGyroDrift.y) / data.frequency);
   data.axesGyroCalibrated.yaw = data.axesGyroCalibrated.yaw + ((data.coordGyro.z - data.coordGyroDrift.z) / data.frequency);
 
-  data.axes.roll = data.axes.roll + ((data.coordGyro.x - data.coordGyroDrift.x) / data.frequency);
-  data.axes.pitch = data.axes.pitch + ((data.coordGyro.y - data.coordGyroDrift.y) / data.frequency);
-  data.axes.yaw = data.axes.yaw + ((data.coordGyro.z - data.coordGyroDrift.z) / data.frequency);
+  data.axes.roll = data.axes.roll + (data.coordGyro.x - data.coordGyroDrift.x) / data.frequency;
+  data.axes.pitch = data.axes.pitch + (data.coordGyro.y - data.coordGyroDrift.y) / data.frequency;
+  data.axes.yaw = data.axes.yaw + (data.coordGyro.z - data.coordGyroDrift.z) / data.frequency;
 
-  data.axes.roll = 0.98 * data.axes.roll + 0.02 * data.axesAccel.roll;
-  data.axes.pitch = 0.98 * data.axes.pitch + 0.02 * data.axesAccel.pitch;
+  data.axes.roll = 0.99 * data.axes.roll + 0.01 * data.axesAccel.roll;
+  data.axes.pitch = 0.99 * data.axes.pitch + 0.01 * data.axesAccel.pitch;
+
   if (count % 100 == 0) {
-    //   Serial.println(count);
-        // ImuPrint();
+    // Serial.print(data.axesAccel.roll); Serial.print(" ");
+    // Serial.print(data.axes.roll); Serial.print(" ");
+    // Serial.print(data.axesAccel.roll); Serial.print(" ");
   }
-  
-  return data.axes.pitch;
+
+
+  // TODO Look at this
+  int16_t correction = constrain(data.coordGyro.x, data.coordGyroDrift.x - 10, data.coordGyroDrift.x + 10); // limit corrections...
+  data.coordGyroDrift.x = data.coordGyroDrift.x * 0.9995 + correction * 0.0005; // Time constant of this correction is around 20 sec.
+
 }
 
-void ImuPrint() {
-// //   Serial.print(data.axesGyro.roll);
-// //   Serial.print(',======');
-//   Serial.print(data.axesGyro.pitch);
-// //   Serial.print(',');
-// //   Serial.print(data.axesGyro.yaw);
-// //   Serial.print(',');
-//   Serial.print(data.axesGyroCalibrated.roll);
-//   Serial.print(',');
-//   Serial.print(data.axesGyroCalibrated.pitch);
-// //   Serial.print(',');
-// //   Serial.print(data.axesGyroCalibrated.yaw);
-// //   Serial.print(',');
-// //   Serial.print(data.axesAccel.roll);
-//   Serial.print(',===');
-  Serial.print(data.axesAccel.pitch);
-//   Serial.print(',');
-//   Serial.print(data.axesAccel.yaw);
-//   Serial.print(',');
-//   Serial.print(data.axes.roll);
-  Serial.print("  **   ");
-  Serial.print(data.axes.pitch);
-//   Serial.print(',');
-//   Serial.print(data.axesAccel.yaw);
-//   Serial.print(',');
-//   Serial.print(data.interval);
-//   Serial.print(',');
-//   Serial.print(data.frequency);
-  Serial.println("");
+boolean ImuRead() {  
+  
+  if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable() ) {
+    long currentTime = micros();
+    _lastInterval = currentTime - _lastTime; // expecting this to be ~104Hz +- 4%
+    _lastTime = currentTime;
+
+    data.interval = _lastInterval;
+    data.frequency = 1000000 / _lastInterval;
+
+    IMU.readAcceleration(data.coordAccel.x, data.coordAccel.y, data.coordAccel.z);
+    IMU.readGyroscope(data.coordGyro.x, data.coordGyro.y, data.coordGyro.z);
+
+    ImuCalculate();
+
+    return true;
+  }
+  return false;
 }
+

@@ -1,29 +1,31 @@
 #include <Arduino.h>
 #include <Data.h>
 
-#define MAX_SPEED 500
+
+#define ITERM_MAX_ERROR 300   // Iterm windup constants for PI control 
+#define ITERM_MAX 50000
 
 extern Data data;
 
 float speedIntError = 0;
 
-float lastPitchError = 0;
+float lastAngleError = 0;
 
-float PidSpeedToPitch(long speed, long setSpeed, float frequency) {
-  
+float PidSpeedToAngle(long speed, long setSpeed, float frequency) {
+
+  // float error;
+  // float output;
+  static float errorSum;
+
+  data.speedError = setSpeed - speed;
+  errorSum += constrain(data.speedError, -ITERM_MAX_ERROR, ITERM_MAX_ERROR);
+  errorSum = constrain(errorSum, -ITERM_MAX, ITERM_MAX);
+
+  float angle = data.speedKp * data.speedError + data.speedKi * errorSum / frequency;
   
   static long count;
   count ++;
 
-
-  float error = setSpeed - speed;
-  // int maxPitch = 5;
-  // speedIntError += constrain(error / frequency, -10, 10);
-
-  float pitch = -(data.speedKp * error);// + speedKi * speedIntError);
-  // pitch = constrain(pitch, -maxPitch, maxPitch);
-
-  // #if LOG_SPEED_PID
 
 if (count%50==0) {
   
@@ -41,56 +43,47 @@ if (count%50==0) {
   //   // LOG.print(speed / 20);
   //   //LOG.print(" Error: ");
   //   //LOG.print(error);
-  //   Serial.print(" p Pitch: ");
+  //   Serial.print(" p Angle: ");
   //   Serial.print(- error * data.speedKp);
-  //   Serial.print(" i Pitch: ");
+  //   Serial.print(" i Angle: ");
   //   Serial.print(- data.speedKi * speedIntError);
-  //   Serial.print(" Pitch: ");
-  //   Serial.print(pitch);
+  //   Serial.print(" Angle: ");
+  //   Serial.print(angle);
 }
   // #endif
-  return pitch;
+  return (angle);
 }
 
-long constrainSteps(long stepsPerSecond) {
-  // prevent instabilites at very low rates
-  if (stepsPerSecond < 0 && stepsPerSecond > -1) {
-    return -1;
-  } else if (stepsPerSecond >= 0 && stepsPerSecond < 1) {
-    return 1;
-  }
-  return constrain(stepsPerSecond, -MAX_SPEED, MAX_SPEED);
-}
+// long constrainSteps(long stepsPerSecond) {
+//   // prevent instabilites at very low rates
+//   if (stepsPerSecond < 0 && stepsPerSecond > -1) {
+//     return -1;
+//   } else if (stepsPerSecond >= 0 && stepsPerSecond < 1) {
+//     return 1;
+//   }
+//   return constrain(stepsPerSecond, -MAX_SPEED, MAX_SPEED);
+// }
 
 float smoothedDeriveError = 0;
 
-long PidPitchToSteps(float pitch, float setPitch, float frequency) {
-  float error = setPitch - pitch;
-  // float derivError = (error - lastPitchError) * frequency;
-  smoothedDeriveError = (smoothedDeriveError + (error - lastPitchError) * frequency) / 2;
-  lastPitchError = error;
-  
-  data.stepsPerSecondKp = int(data.pitchKp * error);
-  data.stepsPerSecondKd = int(data.pitchKd * smoothedDeriveError);
-  
-  long steps = int(data.pitchKp * error + data.pitchKd * smoothedDeriveError);
-  
-  steps = constrainSteps(steps);
+long PidAngleToSteps(float angle, float setAngle, float frequency) {
 
-  // #if LOG_ANGLE_PID
-    // Serial.print("Pitch: ");
-    // Serial.print(pitch);
-    // Serial.print(" SetPitch: ");
-    // Serial.print(setPitch);
-    // Serial.print(" PropSteps: ");
-    // Serial.print(pitchKp * error);
-    // Serial.print(" DerivSteps: ");
-    // Serial.print(pitchKd * derivError);
-    // Serial.print(" Steps: ");
-    // Serial.print(steps);
-    // Serial.println("");
-  // #endif
-  return steps;
+
+static long setAngleOld;
+  static long angleOld;
+  data.angleError = setAngle - angle;
+  
+  // Kd is implemented in two parts
+  //    The biggest one using only the input (sensor) part not the SetPoint input-input(t-1).
+  //    And the second using the setpoint to make it a bit more agressive   setPoint-setPoint(t-1)
+  float setAngleDiff = constrain((setAngle - setAngleOld), -8, 8); // We limit the input part...
+  float angleDiff = angle - angleOld;
+  float steps = data.angleKp * data.angleError + (data.angleKd * (setAngleDiff - angleDiff) * frequency);
+  
+  angleOld = angle;  // error for Kd is only the input component
+  setAngleOld = setAngle;
+  return (steps);
+  
 }
 
 enum TwiddleState {
@@ -117,7 +110,7 @@ void PidStartTwiddling() {
 /**
  * Checks twiddle state and returns desired speed
  */
-  float PidTwiddle(long speed, float pitch) {
+  float PidTwiddle(long speed, float angle) {
   long speedCommand = 0;
   if (twiddleState == NONE) {
     return 0;

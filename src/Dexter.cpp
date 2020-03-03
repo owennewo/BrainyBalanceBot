@@ -3,57 +3,40 @@
 #include <Motor.h>
 #include <PID.h>
 #include <Data.h>
-#include <Arduino_LSM6DS3.h>
 
-// #define FREQUENCY 104 // number of motor updates per second
+#define MAX_SPEED 1200
+#define MAX_ANGLE 25
 
-#define MAX_ANGLE 15
-#define LOG_IMU false
-#define LOG_SPEED_PID false
-#define LOG_ANGLE_PID false
+#define MAX_ACCEL 20
 
-// float speedKp = 0.0027;
-// float speedKi = 0; //0.0006;
-// float pitchKp = 80;
-// float pitchKd = 0.45;
 const int fallThreshold = MAX_ANGLE; // give up if robot is more than this many degrees from vertical
-
-// long setSpeed = 0;
-// float setPitch = 0;
-// long setDirection = 0;
-float maxAccel = 1;
-// float speed = 0;
-// long stepsPerSecond;
-// float differential = 0;
 
 long lastUpdateTime;
 long lastSteerTime;
 long lastPrintTimeMs;
 
-// Config data = Config
-
-Data data = Data(0.0027, 0, 160, 0.5);// = &data;
+Data data = Data(0.0027, 0.01, 200, 0.5);// = &data;
+// Data data = Data(0.0027, 0.01, 0.06, 0.5);// = &data;
 
 float count = 0.0;
 
 void setup() {
-  Serial.begin(115200);
-  while(!Serial) {}
 
+  Serial.begin(500000);
+  // while(!Serial) {}
 
-  data.printHeader();
-  data.print();
+  delay(3000);
+
+  MotorDisable();
+  // Serial.println("Starting");
+
   pinMode(13, OUTPUT);
   digitalWrite(13, HIGH);
-  Serial.begin(57600);
-  Serial1.begin(38400);
-  ImuInit();
+  ImuBegin();
   MotorInit();
-  delay(1000); // pause before starting IMU calibration
   digitalWrite(13, LOW); // turn off LED while calibrating
   ImuCalibrate();
   digitalWrite(13, HIGH);
-
 } 
 
 // smooth out data readings
@@ -62,10 +45,7 @@ float smooth(float newValue, float oldValue, float alpha) {
 }
 
 void processCommand(char commandCode, char * commandValue) {
-  // if (Serial.available()) {
-  //   char key = Serial.read();
-  //   Serial.println(key);
-    // bool changed = true;
+
     switch(commandCode) {
        case 's':
         data.desiredSpeed = atof(commandValue);
@@ -76,17 +56,17 @@ void processCommand(char commandCode, char * commandValue) {
         // lastSteerTime = millis();
         break;
       case 'P':
-        data.pitchKp = atof(commandValue);
-        // Serial.println(data.pitchKp);
+        data.angleKp = atof(commandValue);
+        // Serial.println(data.angleKp);
         break;
       // case 'p':
-      //   data.pitchKp -= 1;
+      //   data.angleKp -= 1;
       //   break;
       case 'D':
-        data.pitchKd = atof(commandValue);
+        data.angleKd = atof(commandValue);
         break;
       // case 'd':
-      //   data.pitchKd -= 0.025;
+      //   data.angleKd -= 0.025;
       //   break;
       case 'p':
         data.speedKp =atof(commandValue);
@@ -94,36 +74,21 @@ void processCommand(char commandCode, char * commandValue) {
       // case 's':
       //   data.speedKp -= 0.001;
       //   break;
+      case 'l':
+        data.log = boolean(atoi(commandValue));
+        break;
+      // case 's':
+      //   data.speedKp -= 0.001;
+      //   break;
       case 'i':
         data.speedKi = atof(commandValue);
         break;
-      // case 'i':
-      //   data.speedKi -= 0.0001;
-      //   break;
-      // case 't':
-      //   Serial.println("twiddling");
-      //   PidStartTwiddling();
-      //   break;
-      //   // 1 m/s = 800 steps/s
-      //   setSpeed = smooth(Serial.parseFloat() * 800, setSpeed, 0.9);
-      //   lastSteerTime = millis();
-      //   break;
       case 'A':
         break;
-        // 1 rad/s = 50 steps/s
-      // Serial.print(" speedKi: ");
-      // Serial.println(data.speedKi, 4);
-      // Serial.print(" pitchKp: ");
-      // Serial.println(data.pitchKp);
-      // Serial.print(" pitchKd: ");
-      // Serial.println(data.pitchKd, 3);
-      // Serial.print(" Steps: ");
-      // Serial.println(stepsPerSecond);
-    
   }
 }
 
-char command[30];
+char command[30] = "\n";
 char commandName;
 char * commandValue;
 byte commandIndex = 0;
@@ -132,58 +97,73 @@ void readSerial() {
   
 
   while (Serial.available()) {
-    char recieved = Serial.read();
-        command[commandIndex] = recieved; 
-        commandIndex++;
-        // Process message when new line character is recieved
-        if (recieved == '\n')
-        {
-            Serial.println("Arduino Received: ");
-            Serial.println(command);
-            commandName = strtok(command, " ")[0]; // must be single char please!
-            commandValue = strtok(NULL, "\n");
-            Serial.println(commandName);
+    char received = Serial.read();
+    command[commandIndex] = received; 
+    
+    // Serial.print(commandIndex);
+    // Serial.print(":");
+    // Serial.print(received);
+    // Serial.print(":");
+    // Serial.println((int) received);
+    commandIndex++;
+    // Process message when new line character is recieved
+    if (received == '\n')
+    {
+        // Serial.println("Arduino Received: ");
+        // Serial.println(command);
+        commandName = strtok(command, " ")[0]; // must be single char please!
+        if (commandName != '\0') {
+          commandValue = strtok(NULL, "\n");
+          if (commandName != '\0') {
+            Serial.print((char) commandName);
+            Serial.print(":");
+            Serial.print((int) commandName);
+            Serial.print(":");
             Serial.println(commandValue);
+            Serial.println(command);
             processCommand(commandName, commandValue);
-            commandIndex = 0; 
-            
+          } else {
+            Serial.print("Unknown commandValue: ");
+            Serial.println(command);
+          }
+        } else {
+          Serial.print("Unknown commandName: ");
+          Serial.println(command);
         }
-
+        commandIndex = 0;    
+    }
   }
   
 }
 
-
-bool fallen(float pitch) {
-  return pitch > fallThreshold || pitch < - fallThreshold;
+bool fallen(float angle) {
+  return angle > fallThreshold || angle < - fallThreshold;
 }
 
+void loop2() {
 
+  readSerial();
+
+  if (ImuRead()) {
+    static long count;
+    count++;
+    if (count %100 == 0) {
+      Serial.println(data.axes.roll);
+    }
+  }
+}
 
 void loop() {
 
-
-//   if (micros() - lastUpdateTime < 1000000 / FREQUENCY) {
-//     return;
-//   }
   static boolean enabled;
 
   readSerial();
   
   lastUpdateTime = micros();
   if (ImuRead()) {
-      float pitch = ImuCalculate();
+      float angle = data.axes.roll;
       
-
-        // if (lastSteerTime < millis() - BLUETOOTH_TIMEOUT) {
-        //     // Serial.println("Timed out");
-        //     setSpeed = smooth(0, setSpeed, 0.9);
-        //     differential = smooth(0, differential, 0.9);
-        // }
-
-        // setSpeed = PidTwiddle(speed, pitch);
-        
-        if (fallen(pitch)) {
+        if (fallen(angle)) {
             if (enabled) {
                 enabled = false;
                 MotorDisable();
@@ -197,9 +177,9 @@ void loop() {
             }
             // speed = smooth(stepsPerSecond, speed, 0.9);
             // speed = stepsPerSecond;
-            data.desiredPitch = PidSpeedToPitch(data.stepsPerSecond, data.desiredSpeed, data.frequency);
-            // data.desiredPitch = 0;
-            data.stepsPerSecond = PidPitchToSteps(pitch, data.desiredPitch, data.frequency);
+            data.desiredAngle = PidSpeedToAngle(data.stepsPerSecond, data.desiredSpeed, data.frequency);
+            // data.desiredAngle = 0;
+            data.stepsPerSecond = PidAngleToSteps(angle, data.desiredAngle, data.frequency);
             // data.stepsPerSecond = stepsPerSecond;
         }
 
@@ -209,21 +189,35 @@ void loop() {
 
         if (count%50 == 0) {
             // Serial.print("\rPITCH: ");
-            // Serial.print(pitch);
+            // Serial.print(angle);
             // Serial.print(" SPEED: ");
             // Serial.print(speed);
             //  Serial.print(" SETSPEED: ");
             // Serial.print(setSpeed);           
             // Serial.print(" SETPITCH: ");
-            // Serial.print(setPitch);
+            // Serial.print(setAngle);
             // Serial.print(" STXXPS: ");
             // Serial.print(stepsPerSecond);    
         }
 
+        data.stepsPerSecondLeft = data.stepsCountLeft * data.frequency / 32;
+        data.stepsPerSecondRight = data.stepsCountRight * data.frequency / 32;
+        data.stepsCountRight = 0;
+        data.stepsCountLeft = 0;
+        
         data.print();
+        data.stepsPerSecond = constrain(data.stepsPerSecond, data.stepsPerSecondOld - MAX_ACCEL, data.stepsPerSecondOld + MAX_ACCEL);
+        data.stepsPerSecond = constrain(data.stepsPerSecond, -MAX_SPEED, MAX_SPEED);
 
-        MotorSetLeftSpeed(data.stepsPerSecond - data.desiredDirection);
-        MotorSetRightSpeed(data.stepsPerSecond + data.desiredDirection);
+        // data.stepsPerSecond = smooth(data.stepsPerSecond, data.stepsPerSecondOld, 0.2);
+
+        data.stepsPerSecondOld = data.stepsPerSecond;
+        
+
+        data.stepsPerSecondLeftDesired = (data.stepsPerSecond - data.desiredDirection);
+        data.stepsPerSecondRightDesired = (data.stepsPerSecond + data.desiredDirection);
+        MotorSetLeftSpeed(2 * (data.stepsPerSecond - data.desiredDirection));
+        MotorSetRightSpeed(2 * (data.stepsPerSecond + data.desiredDirection));
   }
   
 }
