@@ -13,8 +13,11 @@ const int leftDirPin   = 2;
 const int leftStepPin  = 5;
 const int enablePin  = 8;
 
-long oldLeftSpeed = 0;
-long oldRightSpeed = 0;
+// long oldLeftSpeed = 0;
+// long oldRightSpeed = 0;
+int leftDir;
+int rightDir;
+
 
 
 TcCount16* _tcMotorLeft = (TcCount16*) TC4;
@@ -23,7 +26,7 @@ TcCount16* _tcMotorRight = (TcCount16*) TC5;
 
 void leftStep() {
   static boolean toggle;
-  data.stepsCountLeft++;
+  data.stepsCountLeft += leftDir;
   toggle = !toggle; 
   digitalWrite(leftStepPin, toggle);
 //   digitalWrite(leftStepPin, LOW);
@@ -31,7 +34,7 @@ void leftStep() {
 
 void rightStep() {
   static boolean toggle;
-  data.stepsCountRight++;
+  data.stepsCountRight += rightDir;
   toggle = !toggle;   
   digitalWrite(rightStepPin, toggle);
 //   digitalWrite(rightStepPin, LOW);
@@ -132,20 +135,29 @@ void MotorInit() {
   
 }
 
-void setDirection(int pin, long stepsPerSecond) {
-  if (stepsPerSecond >= 0) {
-    digitalWrite(pin, LOW);
-  } else {
-    digitalWrite(pin, HIGH);
-  }
-}
+
 
 void MotorSetLeftSpeed(long stepsPerSecond) {
   setTimerFrequency(_tcMotorLeft, abs(stepsPerSecond * microsteps));
-  setDirection(leftDirPin, stepsPerSecond);
+
+  if (stepsPerSecond >= 0) {
+    digitalWrite(leftDirPin, LOW);
+    leftDir = 1;
+  } else {
+    digitalWrite(leftDirPin, HIGH);
+    leftDir = -1;
+  }
+  // setDirection(leftDirPin, stepsPerSecond);
 }
 
 void MotorSetRightSpeed(long stepsPerSecond) {
   setTimerFrequency(_tcMotorRight, abs(stepsPerSecond * microsteps));
-  setDirection(rightDirPin, stepsPerSecond);
+  if (stepsPerSecond >= 0) {
+    digitalWrite(rightDirPin, LOW);
+    rightDir = 1;
+  } else {
+    digitalWrite(rightDirPin, HIGH);
+    rightDir = -1;
+  }
+  // setDirection(rightDirPin, stepsPerSecond);
 }

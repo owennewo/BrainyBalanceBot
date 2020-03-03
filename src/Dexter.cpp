@@ -48,11 +48,11 @@ void processCommand(char commandCode, char * commandValue) {
 
     switch(commandCode) {
        case 's':
-        data.desiredSpeed = atof(commandValue);
+        data.speedInput = atof(commandValue);
         // lastSteerTime = millis();
         break;
       case 'd':
-        data.desiredDirection = atoi(commandValue);
+        data.directionInput = atoi(commandValue);
         // lastSteerTime = millis();
         break;
       case 'P':
@@ -100,11 +100,6 @@ void readSerial() {
     char received = Serial.read();
     command[commandIndex] = received; 
     
-    // Serial.print(commandIndex);
-    // Serial.print(":");
-    // Serial.print(received);
-    // Serial.print(":");
-    // Serial.println((int) received);
     commandIndex++;
     // Process message when new line character is recieved
     if (received == '\n')
@@ -161,63 +156,41 @@ void loop() {
   
   lastUpdateTime = micros();
   if (ImuRead()) {
-      float angle = data.axes.roll;
+      data.angleMeasured = data.axes.roll;
       
-        if (fallen(angle)) {
+        if (fallen(data.angleMeasured)) {
             if (enabled) {
                 enabled = false;
                 MotorDisable();
             }
             // Serial.println("Fallen");
-            data.stepsPerSecond = 1;
+            data.speedTarget = 1;
         } else {
             if (!enabled) {
-                enabled = true;
-                MotorEnable();
+              enabled = true;
+              MotorEnable();
             }
-            // speed = smooth(stepsPerSecond, speed, 0.9);
-            // speed = stepsPerSecond;
-            data.desiredAngle = PidSpeedToAngle(data.stepsPerSecond, data.desiredSpeed, data.frequency);
-            // data.desiredAngle = 0;
-            data.stepsPerSecond = PidAngleToSteps(angle, data.desiredAngle, data.frequency);
-            // data.stepsPerSecond = stepsPerSecond;
+
+            data.speedMeasuredLeft = data.stepsCountLeft * data.frequency / 32;
+            data.speedMeasuredRight = data.stepsCountRight * data.frequency / 32;
+            data.speedMeasured = (data.speedMeasuredLeft + data.speedMeasuredRight) / 2;
+            data.stepsCountRight = 0;
+            data.stepsCountLeft = 0;
+
+            data.angleTarget = PidSpeedToAngle(data.speedMeasured, data.speedInput, data.frequency);            
+            data.speedTarget = PidAngleToSteps(data.angleMeasured, data.angleTarget, data.frequency);
+            
         }
 
-        // Serial.println(stepsPerSecond);
-        static long count;
-        count++;
-
-        if (count%50 == 0) {
-            // Serial.print("\rPITCH: ");
-            // Serial.print(angle);
-            // Serial.print(" SPEED: ");
-            // Serial.print(speed);
-            //  Serial.print(" SETSPEED: ");
-            // Serial.print(setSpeed);           
-            // Serial.print(" SETPITCH: ");
-            // Serial.print(setAngle);
-            // Serial.print(" STXXPS: ");
-            // Serial.print(stepsPerSecond);    
-        }
-
-        data.stepsPerSecondLeft = data.stepsCountLeft * data.frequency / 32;
-        data.stepsPerSecondRight = data.stepsCountRight * data.frequency / 32;
-        data.stepsCountRight = 0;
-        data.stepsCountLeft = 0;
         
+        data.speedTarget = constrain(data.speedTarget, data.speedMeasured - MAX_ACCEL, data.speedMeasured + MAX_ACCEL);
+        data.speedTarget = constrain(data.speedTarget, -MAX_SPEED, MAX_SPEED);
+
+        data.speedTargetLeft = (data.speedTarget - data.directionInput);
+        data.speedTargetRight = (data.speedTarget + data.directionInput);
+        MotorSetLeftSpeed(2 * data.speedTargetLeft);
+        MotorSetRightSpeed(2 * data.speedTargetRight);
         data.print();
-        data.stepsPerSecond = constrain(data.stepsPerSecond, data.stepsPerSecondOld - MAX_ACCEL, data.stepsPerSecondOld + MAX_ACCEL);
-        data.stepsPerSecond = constrain(data.stepsPerSecond, -MAX_SPEED, MAX_SPEED);
-
-        // data.stepsPerSecond = smooth(data.stepsPerSecond, data.stepsPerSecondOld, 0.2);
-
-        data.stepsPerSecondOld = data.stepsPerSecond;
-        
-
-        data.stepsPerSecondLeftDesired = (data.stepsPerSecond - data.desiredDirection);
-        data.stepsPerSecondRightDesired = (data.stepsPerSecond + data.desiredDirection);
-        MotorSetLeftSpeed(2 * (data.stepsPerSecond - data.desiredDirection));
-        MotorSetRightSpeed(2 * (data.stepsPerSecond + data.desiredDirection));
   }
   
 }

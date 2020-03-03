@@ -21,7 +21,7 @@ float PidSpeedToAngle(long speed, long setSpeed, float frequency) {
   errorSum += constrain(data.speedError, -ITERM_MAX_ERROR, ITERM_MAX_ERROR);
   errorSum = constrain(errorSum, -ITERM_MAX, ITERM_MAX);
 
-  float angle = data.speedKp * data.speedError + data.speedKi * errorSum / frequency;
+  float angleTarget = data.speedKp * data.speedError + data.speedKi * errorSum / frequency;
   
   static long count;
   count ++;
@@ -48,10 +48,10 @@ if (count%50==0) {
   //   Serial.print(" i Angle: ");
   //   Serial.print(- data.speedKi * speedIntError);
   //   Serial.print(" Angle: ");
-  //   Serial.print(angle);
+  //   Serial.print(angleTarget);
 }
   // #endif
-  return (angle);
+  return (angleTarget);
 }
 
 // long constrainSteps(long stepsPerSecond) {
@@ -66,22 +66,38 @@ if (count%50==0) {
 
 float smoothedDeriveError = 0;
 
-long PidAngleToSteps(float angle, float setAngle, float frequency) {
+long PidAngleToSteps(float angleMeasured, float angleTarget, float frequency) {
 
-
-static long setAngleOld;
-  static long angleOld;
-  data.angleError = setAngle - angle;
+  static long angleTargetOld;
+  static long angleMeasuredOld;
+  static long count;
+  data.angleError = angleTarget - angleMeasured;
   
   // Kd is implemented in two parts
   //    The biggest one using only the input (sensor) part not the SetPoint input-input(t-1).
   //    And the second using the setpoint to make it a bit more agressive   setPoint-setPoint(t-1)
-  float setAngleDiff = constrain((setAngle - setAngleOld), -8, 8); // We limit the input part...
-  float angleDiff = angle - angleOld;
-  float steps = data.angleKp * data.angleError + (data.angleKd * (setAngleDiff - angleDiff) * frequency);
+  float angleTargetDiff = constrain((angleTarget - angleTargetOld), -8, 8); // We limit the input part...
+  float angleMeasuredDiff = angleMeasured - angleMeasuredOld;
+  float steps = data.angleKp * data.angleError + (data.angleKd * (angleTargetDiff - angleMeasuredDiff) * frequency);
   
-  angleOld = angle;  // error for Kd is only the input component
-  setAngleOld = setAngle;
+  angleMeasuredOld = angleMeasured;  // error for Kd is only the input component
+  angleTargetOld = angleTarget;
+
+  if (count % 20 == 0) {
+    // Serial.print("                                           ");
+    // Serial.print(count); Serial.print(" ");
+    // Serial.print(angleMeasured); Serial.print(" ");
+    // Serial.print(angleTarget); Serial.print(" ");
+    // Serial.print(angleMeasuredDiff); Serial.print(" ");
+    // Serial.print(angleMeasuredDiff); Serial.print(" ");
+    // Serial.print((data.angleKp * data.angleError)); Serial.print(" ");
+    // Serial.print((data.angleKd * (angleTargetDiff - angleMeasuredDiff) * frequency)); Serial.print(" ");
+    // Serial.println(steps);
+  }
+  count++;
+  
+  // if (count > 100) 
+  //   while(true);
   return (steps);
   
 }
@@ -110,7 +126,7 @@ void PidStartTwiddling() {
 /**
  * Checks twiddle state and returns desired speed
  */
-  float PidTwiddle(long speed, float angle) {
+  float PidTwiddle(long speed, float angleMeasured) {
   long speedCommand = 0;
   if (twiddleState == NONE) {
     return 0;
