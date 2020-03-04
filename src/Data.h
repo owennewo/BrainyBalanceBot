@@ -54,9 +54,6 @@ struct Data {
 
   long speedError;  
 
-  long stepsPerSecondKp;
-  long stepsPerSecondKd;
-
   float angleTarget;
   float angleMeasured;
   float angleError;
@@ -80,27 +77,39 @@ struct Data {
         // log = false;
         if (log) {
             if (count%20==0) {
-                Serial.print("# ");
-                // Serial.print(speedInput); Serial.print(" ");
-                // Serial.print(directionInput); Serial.print(" ");
-                // Serial.print(speedKp, 4); Serial.print(" ");
-                // Serial.print(speedKi, 4); Serial.print(" ");
-                // Serial.print(angleKp, 4); Serial.print(" ");
-                // Serial.print(angleKd, 4); Serial.print(" ");
-                Serial.print(angleMeasured, 3); Serial.print(" ");
-                // Serial.print(axesAccel.roll, 2); Serial.print(" ");
-                // Serial.print(angleTarget, 3); Serial.print(" ");
-                // Serial.print(frequency, 3); Serial.print(" ");
-                Serial.print(speedTarget); Serial.print(" ");
-                Serial.print(speedMeasured); Serial.print(" ");
-                // Serial.print(stepsPerSecondLeftDesired); Serial.print(" ");
-                // Serial.print(stepsPerSecondLeft); Serial.print(" ");
-                // Serial.print(stepsPerSecondRightDesired); Serial.print(" ");
-                // Serial.print(stepsPerSecondRight); Serial.print(" ");
-                // Serial.print(stepsPerSecondKp); Serial.print(" ");
-                // Serial.print(stepsPerSecondKd); Serial.print(" ");
-                // Serial.print(angleError, 4); Serial.print(" ");
-                // Serial.print(speedError); Serial.print(" ");
+                Serial.print("#");
+
+                // CONFIG
+                Serial.print(" kps:");  Serial.print(speedKp, 4);
+                Serial.print(" kpi:");  Serial.print(speedKi, 4); 
+                Serial.print(" kpa:");  Serial.print(angleKp, 4);
+                Serial.print(" kda:");  Serial.print(angleKd, 4);
+                
+                // DIRECTION
+                Serial.print(" di:");   Serial.print(directionInput);
+
+                // ANGLE
+                Serial.print(" am:");   Serial.print(angleMeasured, 3); 
+                Serial.print(" ama:");   Serial.print(axesAccel.roll, 2); 
+                Serial.print(" at:");    Serial.print(angleTarget, 3); 
+                Serial.print(" ae:");   Serial.print(angleError, 4); 
+                
+                // TIME
+                Serial.print(" f:");    Serial.print(frequency, 3); 
+                
+                // SPEED
+                Serial.print(" si:");   Serial.print(speedInput); 
+                // SPEED TARGET
+                Serial.print(" st:");   Serial.print(speedTarget); 
+                Serial.print(" stl:");   Serial.print(speedTargetLeft); 
+                Serial.print(" str:");  Serial.print(speedTargetRight);
+                
+                // SPEED MEASURED
+                Serial.print(" sm:");    Serial.print(speedMeasured); 
+                Serial.print(" sml:");  Serial.print(speedMeasuredLeft); 
+                Serial.print(" smr:");   Serial.print(speedMeasuredRight);
+                // SPEED ERROR
+                Serial.print(" se:");   Serial.print(speedError); 
                 Serial.println("");
             }
         }
