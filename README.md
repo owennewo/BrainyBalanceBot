@@ -2,7 +2,7 @@
 
 This BrainyBalanceBot is not yet brainy!  
 
-I'm separtely working on some Machine Vision code (see MaixPy_scripts april tags) which will be 
+I'm separtely working on some Machine Vision code (see separate MaixPy_scripts repo and april tags script) which will be 
 running on a Maix Dock (microcontroller with OpenMV support) which will sit atop the balance bot.
 
 This repo is designed to run on a nano iot 33 which is a samd21 microcontroller with esp32 side chip
