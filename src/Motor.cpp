@@ -18,7 +18,7 @@ const int enablePin  = 8;
 int leftDir;
 int rightDir;
 
-boolean motorEnabled = false;
+boolean motorEnabled = true;
 
 TcCount16* _tcMotorLeft = (TcCount16*) TC4;
 TcCount16* _tcMotorRight = (TcCount16*) TC5;

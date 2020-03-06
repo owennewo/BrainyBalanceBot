@@ -29,7 +29,6 @@ void loop() {
   readSerial();
   
   if (ImuRead()) {
-      data.angleMeasured = data.axes.roll;
       
       if (ImuCrashed(data.angleMeasured)) {
         MotorDisable();

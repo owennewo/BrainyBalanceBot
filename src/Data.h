@@ -52,11 +52,14 @@ struct Data {
   long speedMeasuredLeft;
   long speedMeasuredRight;
 
+  long speedEstimated;
+
   long speedError;  
 
   float angleTarget;
   float angleMeasured;
   float angleError;
+  float angularVelocity; 
   
   // PID config
     float speedKp; //  = 0.0027;
@@ -90,26 +93,29 @@ struct Data {
 
                 // ANGLE
                 Serial.print(" am:");   Serial.print(angleMeasured, 3); 
-                Serial.print(" ama:");   Serial.print(axesAccel.roll, 2); 
+                // Serial.print(" ama:");   Serial.print(axesAccel.roll, 2); 
                 Serial.print(" at:");    Serial.print(angleTarget, 3); 
-                Serial.print(" ae:");   Serial.print(angleError, 4); 
+                Serial.print(" aerr:");   Serial.print(angleError, 4); 
+                Serial.print(" av:");   Serial.print(angularVelocity, 4); 
                 
                 // TIME
-                Serial.print(" f:");    Serial.print(frequency, 3); 
+                // Serial.print(" f:");    Serial.print(frequency, 3); 
                 
                 // SPEED
                 Serial.print(" si:");   Serial.print(speedInput); 
                 // SPEED TARGET
-                Serial.print(" st:");   Serial.print(speedTarget); 
-                Serial.print(" stl:");   Serial.print(speedTargetLeft); 
-                Serial.print(" str:");  Serial.print(speedTargetRight);
+                // Serial.print(" st:");   Serial.print(speedTarget); 
+                // Serial.print(" stl:");   Serial.print(speedTargetLeft); 
+                // Serial.print(" str:");  Serial.print(speedTargetRight);
                 
                 // SPEED MEASURED
                 Serial.print(" sm:");    Serial.print(speedMeasured); 
-                Serial.print(" sml:");  Serial.print(speedMeasuredLeft); 
-                Serial.print(" smr:");   Serial.print(speedMeasuredRight);
+                // Serial.print(" sml:");  Serial.print(speedMeasuredLeft); 
+                // Serial.print(" smr:");   Serial.print(speedMeasuredRight);
+                
+                Serial.print(" sest:");   Serial.print(speedEstimated);
                 // SPEED ERROR
-                Serial.print(" se:");   Serial.print(speedError); 
+                Serial.print(" serr:");   Serial.print(speedError);
                 Serial.println("");
             }
         }

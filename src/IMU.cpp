@@ -4,6 +4,7 @@
 
  long _lastTime;
  long _lastInterval = 0;
+ float _lastAngle = 0;
 
  extern Data data;
 
@@ -131,6 +132,12 @@ boolean ImuRead() {
     IMU.readGyroscope(data.coordGyro.x, data.coordGyro.y, data.coordGyro.z);
 
     ImuCalculate();
+
+    data.angleMeasured = data.axes.roll;
+    data.angularVelocity = (data.angleMeasured - _lastAngle) * data.frequency  * 200 / 360 ;
+    data.speedEstimated = data.speedMeasured;// - (data.angularVelocity * 25);
+
+    _lastAngle = data.angleMeasured;
 
     return true;
   }
